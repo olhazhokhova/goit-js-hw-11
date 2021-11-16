@@ -18,19 +18,23 @@ function renderCardsMarkup(data) {
   const markup = data.hits
     .map(({ webformatURL, tags, likes, views, comments, downloads }) => {
       return `<div class="photo-card">
-        <img src="${webformatURL}" alt="${tags}" loading="lazy" />
+        <div class="img"><img src="${webformatURL}" alt="${tags}" loading="lazy" /></div>
         <div class="info">
             <p class="info-item">
-                <b>${likes}</b>
+                <b>Likes</b>
+                <span>${likes}</span>
             </p>
             <p class="info-item">
-                <b>${views}</b>
+                <b>Views</b>
+                <span>${views}</span>
             </p>
             <p class="info-item">
-                <b>${comments}</b>
+                <b>Comments</b>
+                <span>${comments}</span>
             </p>
             <p class="info-item">
-                <b>${downloads}</b>
+                <b>Downloads</b>
+                <span>${downloads}</span>
             </p>
         </div>
     </div>`;
