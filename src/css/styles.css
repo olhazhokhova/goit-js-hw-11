@@ -90,6 +90,7 @@ img {
   position: relative;
   padding-top: 250px;
   margin-bottom: 10px;
+  display: block;
 }
 
 .img img {

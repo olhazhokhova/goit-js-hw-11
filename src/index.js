@@ -3,7 +3,7 @@ import Notiflix from 'notiflix';
 import SimpleLightbox from 'simplelightbox';
 import 'simplelightbox/dist/simple-lightbox.min.css';
 
-import fetch from './js/fetch';
+import apiService from './js/api';
 
 const form = document.querySelector('#search-form');
 const gallery = document.querySelector('.gallery');
@@ -15,7 +15,6 @@ let totalHits = 0;
 window.addEventListener('DOMContentLoaded', () => {
   moreBtn.classList.add('hide');
   form.elements.searchButton.disabled = true;
-  new SimpleLightbox('.gallery a', { captionsData: 'alt', captionDelay: 250 });
 });
 
 form.elements.searchQuery.addEventListener('input', e => {
@@ -28,12 +27,12 @@ form.addEventListener('submit', e => {
   gallery.innerHTML = '';
   moreBtn.classList.add('hide');
   const { searchQuery } = e.currentTarget.elements;
-  fetch(searchQuery.value, page).then(data => {
-    totalHits = data.totalHits;
-    if (page === 1) {
+  apiService(searchQuery.value, page).then(response => {
+    totalHits = response.data.totalHits;
+    if (page === 1 && totalHits > 0) {
       Notiflix.Notify.success(`Hooray! We found ${totalHits} images.`);
     }
-    renderCardsMarkup(data);
+    renderCardsMarkup(response.data);
     totalHits > 0 && moreBtn.classList.remove('hide');
   });
 });
@@ -41,12 +40,20 @@ form.addEventListener('submit', e => {
 moreBtn.addEventListener('click', () => {
   const { searchQuery } = form.elements;
   page += 1;
-  fetch(searchQuery.value, page).then(data => {
-    renderCardsMarkup(data);
+  apiService(searchQuery.value, page).then(response => {
+    renderCardsMarkup(response.data);
     totalHits -= 40;
     if (totalHits <= 40) {
       moreBtn.classList.add('hide');
     }
+    const { height: cardHeight } = document
+      .querySelector('.gallery')
+      .firstElementChild.getBoundingClientRect();
+
+    window.scrollBy({
+      top: cardHeight * 2,
+      behavior: 'smooth',
+    });
   });
 });
 
@@ -54,7 +61,7 @@ function renderCardsMarkup(data) {
   const markup = data.hits
     .map(({ largeImageURL, webformatURL, tags, likes, views, comments, downloads }) => {
       return `<div class="photo-card">
-        <div class="img"><a href="${largeImageURL}"><img src="${webformatURL}" alt="${tags}" loading="lazy" /></a></div>
+        <a href="${largeImageURL}" class="img"><img src="${webformatURL}" alt="${tags}" loading="lazy" /></a>
         <div class="info">
             <p class="info-item">
                 <b>Likes</b>
