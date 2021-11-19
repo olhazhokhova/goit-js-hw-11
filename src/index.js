@@ -12,6 +12,8 @@ const moreBtn = document.querySelector('.load-more');
 let page = 1;
 let totalHits = 0;
 
+let simpleGallery = new SimpleLightbox('.gallery a');
+
 window.addEventListener('DOMContentLoaded', () => {
   moreBtn.classList.add('hide');
   form.elements.searchButton.disabled = true;
@@ -23,10 +25,11 @@ form.elements.searchQuery.addEventListener('input', e => {
 
 form.addEventListener('submit', e => {
   e.preventDefault();
+  const { searchQuery } = e.currentTarget.elements;
   page = 1;
   gallery.innerHTML = '';
   moreBtn.classList.add('hide');
-  const { searchQuery } = e.currentTarget.elements;
+
   apiService(searchQuery.value, page).then(response => {
     totalHits = response.data.totalHits;
     if (page === 1 && totalHits > 0) {
@@ -34,6 +37,7 @@ form.addEventListener('submit', e => {
     }
     renderCardsMarkup(response.data);
     totalHits > 40 && moreBtn.classList.remove('hide');
+    simpleGallery.refresh();
   });
 });
 
@@ -42,6 +46,7 @@ moreBtn.addEventListener('click', () => {
   page += 1;
   apiService(searchQuery.value, page).then(response => {
     renderCardsMarkup(response.data);
+    simpleGallery.refresh();
     totalHits -= 40;
     if (totalHits <= 40) {
       moreBtn.classList.add('hide');
