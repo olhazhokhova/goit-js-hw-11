@@ -33,7 +33,7 @@ form.addEventListener('submit', e => {
       Notiflix.Notify.success(`Hooray! We found ${totalHits} images.`);
     }
     renderCardsMarkup(response.data);
-    totalHits > 0 && moreBtn.classList.remove('hide');
+    totalHits > 40 && moreBtn.classList.remove('hide');
   });
 });
 
