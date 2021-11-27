@@ -1,99 +1,138 @@
 import './css/styles.css';
-import Notiflix from 'notiflix';
-import SimpleLightbox from 'simplelightbox';
-import 'simplelightbox/dist/simple-lightbox.min.css';
+import axios from 'axios';
+import throttle from 'lodash.throttle';
 
-import apiService from './js/api';
+const comments = document.querySelector('.comments');
+const form = document.querySelector('.comment-form');
+const toggle = document.querySelector('.toggle-comments');
+const filter = document.querySelector('.filter');
 
-const form = document.querySelector('#search-form');
-const gallery = document.querySelector('.gallery');
-const moreBtn = document.querySelector('.load-more');
+axios.defaults.baseURL = 'https://61a1f0af014e1900176de7da.mockapi.io/api/v1';
 
-let page = 1;
-let totalHits = 0;
+const getComments = () => {
+  return axios.get('/comments');
+};
 
-let simpleGallery = new SimpleLightbox('.gallery a');
+const renderComments = async () => {
+  const { data } = await getComments();
 
-window.addEventListener('DOMContentLoaded', () => {
-  moreBtn.classList.add('hide');
-  form.elements.searchButton.disabled = true;
-});
+  comments.innerHTML = toggle.dataset.checked
+    ? createMarkupWithSpam(data)
+    : createMarkupWithoutSpam(data);
+};
 
-form.elements.searchQuery.addEventListener('input', e => {
-  form.elements.searchButton.disabled = e.currentTarget.value.length > 0 ? false : true;
-});
-
-form.addEventListener('submit', e => {
-  e.preventDefault();
-  const { searchQuery } = e.currentTarget.elements;
-  page = 1;
-  gallery.innerHTML = '';
-  moreBtn.classList.add('hide');
-
-  apiService(searchQuery.value, page).then(response => {
-    totalHits = response.data.totalHits;
-    if (page === 1 && totalHits > 0) {
-      Notiflix.Notify.success(`Hooray! We found ${totalHits} images.`);
-    }
-    renderCardsMarkup(response.data);
-    totalHits > 40 && moreBtn.classList.remove('hide');
-    simpleGallery.refresh();
-  });
-});
-
-moreBtn.addEventListener('click', () => {
-  const { searchQuery } = form.elements;
-  page += 1;
-  apiService(searchQuery.value, page).then(response => {
-    renderCardsMarkup(response.data);
-    simpleGallery.refresh();
-    totalHits -= 40;
-    if (totalHits <= 40) {
-      moreBtn.classList.add('hide');
-    }
-    const { height: cardHeight } = document
-      .querySelector('.gallery')
-      .firstElementChild.getBoundingClientRect();
-
-    window.scrollBy({
-      top: cardHeight * 2,
-      behavior: 'smooth',
-    });
-  });
-});
-
-function renderCardsMarkup(data) {
-  const markup = data.hits
-    .map(({ largeImageURL, webformatURL, tags, likes, views, comments, downloads }) => {
-      return `<div class="photo-card">
-        <a href="${largeImageURL}" class="img"><img src="${webformatURL}" alt="${tags}" loading="lazy" /></a>
-        <div class="info">
-            <p class="info-item">
-                <b>Likes</b>
-                <span>${likes}</span>
-            </p>
-            <p class="info-item">
-                <b>Views</b>
-                <span>${views}</span>
-            </p>
-            <p class="info-item">
-                <b>Comments</b>
-                <span>${comments}</span>
-            </p>
-            <p class="info-item">
-                <b>Downloads</b>
-                <span>${downloads}</span>
-            </p>
+function createMarkupWithSpam(data) {
+  const markup = data
+    .filter(el => {
+      return el.comment.toLowerCase().includes('spam') || el.comment.toLowerCase().includes('sale');
+    })
+    .map(({ comment, name, createdAt, id }) => {
+      return `
+      <div class="item">
+        ${name}
+        <div>
+          ${comment}
         </div>
-    </div>`;
+        ${createdAt}
+        <button class="delete" data-id="${id}">x</button>
+      </div>
+    `;
     })
     .join('');
+  return markup;
+}
 
-  if (data.totalHits === 0) {
-    Notiflix.Notify.failure(
-      'Sorry, there are no images matching your search query. Please try again.',
-    );
-  } else {
-    gallery.insertAdjacentHTML('beforeend', markup);
+function createMarkupWithoutSpam(data) {
+  const markup = data
+    .filter(el => {
+      return (
+        !el.comment.toLowerCase().includes('spam') || !el.comment.toLowerCase().includes('sale')
+      );
+    })
+    .map(({ comment, name, createdAt, id }) => {
+      return `
+      <div class="item">
+        ${name}
+        <div>
+          ${comment}
+        </div>
+        ${createdAt}
+        <button class="delete" data-id="${id}">x</button>
+      </div>
+    `;
+    })
+    .join('');
+  return markup;
+}
+
+function createMarkupByFilter(data) {
+  const markup = data
+    .map(({ comment, name, createdAt, id }) => {
+      return `
+      <div class="item">
+        ${name}
+        <div>
+          ${comment}
+        </div>
+        ${createdAt}
+        <button class="delete" data-id="${id}">x</button>
+      </div>
+    `;
+    })
+    .join('');
+  return markup;
+}
+
+window.addEventListener('DOMContentLoaded', renderComments);
+
+form.addEventListener('submit', addComment);
+
+comments.addEventListener('click', deleteComment);
+
+toggle.addEventListener('click', toggleComments);
+
+filter.addEventListener('input', throttle(filterComments, 1000));
+
+async function addComment(e) {
+  e.preventDefault();
+
+  const { name, comment } = e.currentTarget.elements;
+
+  const commentObj = {
+    name: name.value,
+    comment: comment.value,
+  };
+
+  await axios.post('/comments', commentObj);
+  renderComments();
+}
+
+async function deleteComment(e) {
+  if (e.target.nodeName !== 'BUTTON') {
+    return;
   }
+  await axios.delete(`/comments/${e.target.dataset.id}`);
+  renderComments();
+}
+
+function toggleComments(e) {
+  if (!e.currentTarget.dataset.checked) {
+    renderComments();
+    e.currentTarget.textContent = 'Check comments';
+    e.currentTarget.dataset.checked = true;
+    return;
+  }
+  renderComments();
+  e.currentTarget.textContent = 'Check comments with spam';
+  e.currentTarget.dataset.checked = '';
+}
+
+async function filterComments(e) {
+  const { data } = await getComments();
+
+  const filteredComments = data.filter(el => {
+    return el.name.toLowerCase().includes(e.target.value.toLowerCase().trim());
+  });
+
+  comments.innerHTML = createMarkupByFilter(filteredComments);
 }
